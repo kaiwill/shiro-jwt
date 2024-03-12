@@ -15,8 +15,9 @@
 package com.qinyeit.shirojwt.demos.configuration;
 
 import com.qinyeit.shirojwt.demos.shiro.filter.AuthenticationFilter;
+import com.qinyeit.shirojwt.demos.shiro.realm.SystemAccountRealm;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.shiro.realm.Realm;
-import org.apache.shiro.realm.text.TextConfigurationRealm;
 import org.apache.shiro.spring.web.ShiroFilterFactoryBean;
 import org.apache.shiro.spring.web.config.DefaultShiroFilterChainDefinition;
 import org.apache.shiro.spring.web.config.ShiroFilterChainDefinition;
@@ -34,25 +35,11 @@ import org.springframework.context.annotation.Configuration;
  * @since JDK 1.8
  */
 @Configuration
+@Slf4j
 public class ShiroConfiguration {
     @Bean
     public Realm realm() {
-        TextConfigurationRealm realm = new TextConfigurationRealm();
-        // 定义了admin 和 user 两个角色， admin 用户可以读写， user 用户只能读
-        realm.setRoleDefinitions("""
-                admin=read,write
-                user=read
-                """);
-        // 定义了两个用户 joe.coder 和 jill.coder， joe.coder 用户可以读写， jill.coder 用户可以读
-        realm.setUserDefinitions("""
-                joe.coder=123,user
-                jill.coder=456,admin
-                """);
-        // 开启了缓存,其实默认已经开启
-        realm.setCachingEnabled(true);
-        // 给realm设置名称
-        realm.setName("userRealm");
-        return realm;
+        return new SystemAccountRealm();
     }
 
     @Bean
