@@ -76,21 +76,37 @@ public class SystemAccountRealm extends AuthorizingRealm {
 
     @Override
     protected AuthenticationInfo doGetAuthenticationInfo(AuthenticationToken token) throws AuthenticationException {
+        if (getCacheManager() == null) {
+            log.info("================>cacheManager为空");
+        } else {
+            log.info("================cacheManager:{}", getCacheManager().getClass().getName());
+        }
         // 1.从传过来的认证Token信息中，获得账号
         String account = token.getPrincipal().toString();
 
         // 2.通过用户名到数据库中获取整个用户对象
         SystemAccount systemAccount = systemAccountMap.get(account);
         if (systemAccount == null) {
-            throw new AuthenticationException("账号不存在");
+            throw new UnknownAccountException();
         }
         // 3. 创建认证信息，即用户正确的用户名和密码。
-        // 三个参数，第一个参数为主体，第二个参数为凭证，第三个参数为Realm的名称
+        // 四个参数：
+        // 第一个参数为主体，第二个参数为凭证，第三个参数为Realm的名称
         // 因为上面将凭证信息和主体身份信息都保存在 SystemAccount中了，所以这里直接将 SystemAccount对象作为主体信息即可
-        // 第二个参数表示凭证，匹配器中会从 SystemAccount中获取凭证信息，所以这里直接传null。
-        // 第三个参数表示 Realm的名称
+
+        // 第二个参数表示凭证，匹配器中会从 SystemAccount中获取盐值，密码登凭证信息，所以这里直接传null。
+
+        // 第三个参数，表示盐值，这里使用了自定义的SaltSimpleByteSource，之所以在这里new了一个自定义的SaltSimpleByteSource，
+        // 是因为开启redis缓存的情况下，序列化会报错
+
+        // 第四个参数表示 Realm的名称
         SimpleAuthenticationInfo authenticationInfo = new SimpleAuthenticationInfo(
-                systemAccount, null, getName());
+                systemAccount,
+                null,
+                new SaltSimpleByteSource(systemAccount.getSalt()),
+                getName()
+        );
+        // authenticationInfo.setCredentialsSalt(null);
         return authenticationInfo;
     }
 

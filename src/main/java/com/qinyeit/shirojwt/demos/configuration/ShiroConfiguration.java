@@ -14,9 +14,11 @@
  *******************************************************************************/
 package com.qinyeit.shirojwt.demos.configuration;
 
+import com.qinyeit.shirojwt.demos.shiro.cache.ShiroRedisCacheManager;
 import com.qinyeit.shirojwt.demos.shiro.filter.AuthenticationFilter;
 import com.qinyeit.shirojwt.demos.shiro.realm.SystemAccountRealm;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.shiro.cache.CacheManager;
 import org.apache.shiro.realm.Realm;
 import org.apache.shiro.spring.web.ShiroFilterFactoryBean;
 import org.apache.shiro.spring.web.config.DefaultShiroFilterChainDefinition;
@@ -24,6 +26,8 @@ import org.apache.shiro.spring.web.config.ShiroFilterChainDefinition;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.RedisSerializer;
 
 /**
  * <p>ClassName: com.qinyeit.shirojwt.demos.configuration.ShiroConfiguration
@@ -39,7 +43,29 @@ import org.springframework.context.annotation.Configuration;
 public class ShiroConfiguration {
     @Bean
     public Realm realm() {
-        return new SystemAccountRealm();
+        SystemAccountRealm realm = new SystemAccountRealm();
+        // 开启全局缓存
+        realm.setCachingEnabled(true);
+        // 打开认证缓存
+        realm.setAuthenticationCachingEnabled(true);
+        // 认证缓存的名字，不设置也可以，默认由
+        realm.setAuthenticationCacheName("shiro:authentication:cache");
+
+        // 打开授权缓存
+        realm.setAuthorizationCachingEnabled(true);
+        // 授权缓存的名字， 不设置也可以，默认由
+        realm.setAuthorizationCacheName("shiro:authorization:cache");
+        return realm;
+    }
+
+    @Bean
+    public CacheManager shiroCacheManager(RedisTemplate redisTemplate) {
+        RedisSerializer<String> stringSerializer = RedisSerializer.string();
+        // 设置key的序列化器
+        redisTemplate.setKeySerializer(stringSerializer);
+        // 设置 Hash 结构中 key 的序列化器
+        redisTemplate.setHashKeySerializer(stringSerializer);
+        return new ShiroRedisCacheManager(redisTemplate);
     }
 
     @Bean
