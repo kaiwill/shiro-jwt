@@ -15,14 +15,19 @@
 package com.qinyeit.shirojwt.demos.configuration;
 
 import com.qinyeit.shirojwt.demos.shiro.cache.ShiroRedisCacheManager;
+import com.qinyeit.shirojwt.demos.shiro.cache.ShiroRedisSessionDAO;
 import com.qinyeit.shirojwt.demos.shiro.filter.AuthenticationFilter;
 import com.qinyeit.shirojwt.demos.shiro.realm.SystemAccountRealm;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.shiro.cache.CacheManager;
 import org.apache.shiro.realm.Realm;
+import org.apache.shiro.session.mgt.SessionFactory;
+import org.apache.shiro.session.mgt.SessionManager;
+import org.apache.shiro.session.mgt.eis.SessionDAO;
 import org.apache.shiro.spring.web.ShiroFilterFactoryBean;
 import org.apache.shiro.spring.web.config.DefaultShiroFilterChainDefinition;
 import org.apache.shiro.spring.web.config.ShiroFilterChainDefinition;
+import org.apache.shiro.web.session.mgt.DefaultWebSessionManager;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -67,6 +72,22 @@ public class ShiroConfiguration {
         redisTemplate.setHashKeySerializer(stringSerializer);
         return new ShiroRedisCacheManager(redisTemplate);
     }
+
+    // 配置SessionDAO
+    @Bean
+    public SessionDAO shiroRedisSessionDAO(RedisTemplate redisTemplate) {
+        return new ShiroRedisSessionDAO(redisTemplate, "shiro:session");
+    }
+
+    @Bean
+    public SessionManager sessionManager(RedisTemplate redisTemplate, SessionFactory sessionFactory) {
+        DefaultWebSessionManager sessionManager = new DefaultWebSessionManager();
+        sessionManager.setSessionDAO(shiroRedisSessionDAO(redisTemplate));
+        sessionManager.setSessionFactory(sessionFactory);
+        sessionManager.setDeleteInvalidSessions(true);
+        return sessionManager;
+    }
+
 
     @Bean
     public ShiroFilterChainDefinition shiroFilterChainDefinition() {
