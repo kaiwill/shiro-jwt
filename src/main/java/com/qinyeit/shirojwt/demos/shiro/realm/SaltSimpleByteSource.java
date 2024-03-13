@@ -26,7 +26,8 @@ import java.util.Arrays;
 
 /**
  * <p>ClassName: com.qinyeit.shirojwt.demos.shiro.realm.SaltSimpleByteSource
- * <p>Function: 简单继承SimpleByteSource，然后实现 Serializable接口
+ * <p>Function: 继承SimpleByteSource，然后实现 Serializable接口, 仿照SimpleByteSource 中代码实现
+ * 添加一个无参构造方法，反序列化的时候会用到，要不然依然会报错
  * <p>date: 2024-03-13 11:59
  *
  * @author wuqing
