@@ -14,44 +14,102 @@
  *******************************************************************************/
 package com.qinyeit.shirojwt.demos.shiro.realm;
 
+import org.apache.shiro.lang.codec.Base64;
+import org.apache.shiro.lang.codec.CodecSupport;
+import org.apache.shiro.lang.codec.Hex;
 import org.apache.shiro.lang.util.ByteSource;
-import org.apache.shiro.lang.util.SimpleByteSource;
 
 import java.io.File;
 import java.io.InputStream;
 import java.io.Serializable;
+import java.util.Arrays;
 
 /**
  * <p>ClassName: com.qinyeit.shirojwt.demos.shiro.realm.SaltSimpleByteSource
- * <p>Function: 简单继承SimpleByteSource，然后实现 Serializable接口
+ * <p>Function: 继承SimpleByteSource，然后实现 Serializable接口, 仿照SimpleByteSource 中代码实现
+ * 添加一个无参构造方法，反序列化的时候会用到，要不然依然会报错
  * <p>date: 2024-03-13 11:59
  *
  * @author wuqing
  * @version 1.0
  * @since JDK 1.8
  */
-public class SaltSimpleByteSource extends SimpleByteSource implements Serializable {
+public class SaltSimpleByteSource extends CodecSupport implements ByteSource, Serializable {
+    private byte[] bytes;
+    private String cachedHex;
+    private String cachedBase64;
+
+    // 添加一个无参构造函数，反序列化会用到
+    public SaltSimpleByteSource() {
+    }
+
     public SaltSimpleByteSource(byte[] bytes) {
-        super(bytes);
+        this.bytes = bytes;
     }
 
     public SaltSimpleByteSource(char[] chars) {
-        super(chars);
+        this.bytes = toBytes(chars);
     }
 
     public SaltSimpleByteSource(String string) {
-        super(string);
+        this.bytes = toBytes(string);
     }
 
     public SaltSimpleByteSource(ByteSource source) {
-        super(source);
+        this.bytes = source.getBytes();
     }
 
     public SaltSimpleByteSource(File file) {
-        super(file);
+        this.bytes = toBytes(file);
     }
 
     public SaltSimpleByteSource(InputStream stream) {
-        super(stream);
+        this.bytes = toBytes(stream);
+    }
+
+    @Override
+    public byte[] getBytes() {
+        return bytes;
+    }
+
+    @Override
+    public String toHex() {
+        if (this.cachedHex == null) {
+            this.cachedHex = Hex.encodeToString(this.getBytes());
+        }
+
+        return this.cachedHex;
+    }
+
+    @Override
+    public String toBase64() {
+        if (this.cachedBase64 == null) {
+            this.cachedBase64 = Base64.encodeToString(this.getBytes());
+        }
+        return this.cachedBase64;
+    }
+
+    public String toString() {
+        return this.toBase64();
+    }
+
+    public int hashCode() {
+        return this.bytes != null && this.bytes.length != 0 ? Arrays.hashCode(this.bytes) : 0;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        } else if (o instanceof ByteSource) {
+            ByteSource bs = (ByteSource) o;
+            return Arrays.equals(this.getBytes(), bs.getBytes());
+        } else {
+            return false;
+        }
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return this.bytes == null || this.bytes.length == 0;
     }
 }
