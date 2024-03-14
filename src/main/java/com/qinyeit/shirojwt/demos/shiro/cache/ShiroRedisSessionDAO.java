@@ -15,19 +15,13 @@
 package com.qinyeit.shirojwt.demos.shiro.cache;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.shiro.cache.AbstractCacheManager;
-import org.apache.shiro.cache.Cache;
-import org.apache.shiro.cache.CacheException;
-import org.apache.shiro.cache.MapCache;
 import org.apache.shiro.session.Session;
-import org.apache.shiro.session.UnknownSessionException;
-import org.apache.shiro.session.mgt.eis.CachingSessionDAO;
+import org.apache.shiro.session.mgt.eis.EnterpriseCacheSessionDAO;
+import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.serializer.RedisSerializer;
 
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * <p>ClassName: com.qinyeit.shirojwt.demos.shiro.cache.ShiroRedisSessionDAO
@@ -39,89 +33,61 @@ import java.util.concurrent.ConcurrentHashMap;
  * @since JDK 1.8
  */
 @Slf4j
-public class ShiroRedisSessionDAO extends CachingSessionDAO {
-    // redis Key
-    private String        redisKey = "shiro:session";
-    private RedisTemplate redisTemplate;
+public class ShiroRedisSessionDAO extends EnterpriseCacheSessionDAO {
+    //redis中session名称前缀
+    private String redisKey = "shiro:session";
 
-    public ShiroRedisSessionDAO(RedisTemplate redisTemplate, String redisKey) {
+    private RedisTemplate<Object, Object> redisTemplate;
 
-        RedisSerializer<String> stringSerializer = RedisSerializer.string();
-        redisTemplate.setKeySerializer(stringSerializer);
-        redisTemplate.setHashKeySerializer(stringSerializer);
+    public ShiroRedisSessionDAO(RedisTemplate<Object, Object> redisTemplate, String redisKey) {
         this.redisTemplate = redisTemplate;
-
-        // 设置一个本地缓存，使用内存，减少对redis的访问
-        setCacheManager(new AbstractCacheManager() {
-            @Override
-            protected Cache<Serializable, Session> createCache(String name) throws CacheException {
-                return new MapCache<Serializable, Session>(name, new ConcurrentHashMap<Serializable, Session>());
-            }
-        });
-
         this.redisKey = redisKey;
-
     }
 
+    // 创建session，保存到数据库
     @Override
     protected Serializable doCreate(Session session) {
-        // 此时sessionID还没有生成，所以需要生成sessionID
-        Serializable sessionId = generateSessionId(session);
-        assignSessionId(session, sessionId);
-        //添加进redis
-        this.hadd(sessionId.toString(), session);
+        Serializable sessionId = super.doCreate(session);
+        log.debug("doCreate:" + session.getId());
+        redisTemplate.opsForHash().put(redisKey, session.getId(), session);
         return sessionId;
     }
 
+    // 获取session
     @Override
     protected Session doReadSession(Serializable sessionId) {
-        return this.hget(sessionId.toString());
-    }
-
-    // 重写了父类的update方法，所以下面的 doUpdate 不会被调用
-    @Override
-    public void update(Session session) throws UnknownSessionException {
-        if (session == null || session.getId() == null) {
-            return;
+        log.debug("doReadSession:" + sessionId);
+        // 先从缓存中获取session，如果没有再去数据库中获取
+        Session session = super.doReadSession(sessionId);
+        if (session == null) {
+            session = (Session) redisTemplate.opsForHash().get(redisKey, sessionId);
         }
-        Serializable sessionId = session.getId();
-        this.hadd(sessionId.toString(), session);
+        return session;
     }
 
+    // 更新session的最后一次访问时间
     @Override
     protected void doUpdate(Session session) {
-        //log.debug("无需做任何操作,该方法永远不会被调用");
-    }
-
-    // 重写了父类的delete方法，所以下面的 doDelete 不会被调用
-    @Override
-    public void delete(Session session) {
-        if (session == null || session.getId() == null) {
-            return;
+        super.doUpdate(session);
+        log.debug("doUpdate:" + session.getId());
+        HashOperations<Object, Object, Object> hashOp = redisTemplate.opsForHash();
+        if (!hashOp.hasKey(redisKey, session.getId())) {
+            hashOp.put(redisKey, session.getId(), session);
         }
-        this.hdelete(session.getId().toString());
     }
 
+    //删除session
     @Override
     protected void doDelete(Session session) {
-        //log.debug("无需做任何操作,该方法永远不会被调用");
+        log.debug("doDelete:" + session.getId());
+        super.doDelete(session);
+        HashOperations<Object, Object, Object> hashOp = redisTemplate.opsForHash();
+        hashOp.delete(redisKey, session.getId());
     }
 
+    //获取当前活动的session
     @Override
     public Collection<Session> getActiveSessions() {
-        return null;
-    }
-
-    public void hadd(String sessionId, Session session) {
-        log.info("=========================================================={}", sessionId);
-        redisTemplate.boundHashOps(redisKey).put(sessionId, session);
-    }
-
-    public Session hget(String sessionId) {
-        return (Session) redisTemplate.boundHashOps(redisKey).get(sessionId);
-    }
-
-    public void hdelete(String sessionId) {
-        redisTemplate.boundHashOps(redisKey).delete(sessionId);
+        return super.getActiveSessions();
     }
 }
