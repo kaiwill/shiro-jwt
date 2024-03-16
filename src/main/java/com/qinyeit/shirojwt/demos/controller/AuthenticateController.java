@@ -51,6 +51,7 @@ public class AuthenticateController {
             PrincipalCollection principalCollection = subject.getPrincipals();
             log.info("是否认证：{}，当前登录用户主体信息:{}", subject.isAuthenticated(), principalCollection.getPrimaryPrincipal());
             map.put("name", principalCollection.getPrimaryPrincipal().toString());
+            map.put("accessToken", subject.getSession().getId().toString());
             map.put("message", "登录成功");
         } else {
             String exceptionClassName = (String) req.getAttribute(AuthenticationFilter.DEFAULT_ERROR_KEY_ATTRIBUTE_NAME);

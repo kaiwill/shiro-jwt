@@ -18,19 +18,16 @@ import com.qinyeit.shirojwt.demos.shiro.cache.ShiroRedisCacheManager;
 import com.qinyeit.shirojwt.demos.shiro.cache.ShiroRedisSessionDAO;
 import com.qinyeit.shirojwt.demos.shiro.filter.AuthenticationFilter;
 import com.qinyeit.shirojwt.demos.shiro.realm.SystemAccountRealm;
+import com.qinyeit.shirojwt.demos.shiro.session.AccessTokenWebSessionManager;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.shiro.cache.CacheManager;
 import org.apache.shiro.realm.Realm;
-import org.apache.shiro.session.mgt.ExecutorServiceSessionValidationScheduler;
 import org.apache.shiro.session.mgt.SessionFactory;
 import org.apache.shiro.session.mgt.SessionManager;
 import org.apache.shiro.session.mgt.eis.SessionDAO;
 import org.apache.shiro.spring.web.ShiroFilterFactoryBean;
 import org.apache.shiro.spring.web.config.DefaultShiroFilterChainDefinition;
 import org.apache.shiro.spring.web.config.ShiroFilterChainDefinition;
-import org.apache.shiro.web.servlet.Cookie;
-import org.apache.shiro.web.session.mgt.DefaultWebSessionManager;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -90,41 +87,14 @@ public class ShiroConfiguration {
     @Bean
     public SessionManager sessionManager(
             SessionFactory sessionFactory,
-            @Qualifier("sessionCookieTemplate") Cookie cookieTemplate,
             SessionDAO sessionDAO) {
-        DefaultWebSessionManager webSessionManager = new DefaultWebSessionManager();
-        // 开启Cookie，即由Cookie来传递 sessionID保持会话
-        webSessionManager.setSessionIdCookieEnabled(true);
-        // 开启URL重写，即可以从URL中获取sessionID来保持会话
-        webSessionManager.setSessionIdUrlRewritingEnabled(true);
-        // 自动配置中已经配置了cookieTemplate 直接注入进来,具体看 ShiroWebAutoConfiguration 类中bean的定义
-        webSessionManager.setSessionIdCookie(cookieTemplate);
+        AccessTokenWebSessionManager webSessionManager = new AccessTokenWebSessionManager();
         // 自动配置中已经配置了sessionFactory 直接注入进来
         webSessionManager.setSessionFactory(sessionFactory);
         // 使用自定义的ShiroRedisSessionDAO
         webSessionManager.setSessionDAO(sessionDAO);
-        // 清理无效的session
-        webSessionManager.setDeleteInvalidSessions(true);
-        // 开启session定时检查
-        webSessionManager.setSessionValidationSchedulerEnabled(true);
-        webSessionManager.setSessionValidationScheduler(new ExecutorServiceSessionValidationScheduler());
         return webSessionManager;
     }
-
-//    @Bean
-//    public DefaultWebSecurityManager securityManager(SessionManager sessionManager,
-//                                                     CacheManager cacheManager,
-//                                                     Realm realm) {
-//        DefaultWebSecurityManager securityManager = new DefaultWebSecurityManager();
-//        // 设置自定义的Realm实现
-//        securityManager.setRealm(realm);
-//        log.info("sessionManager=============>{}  realm====>{}", securityManager.getSessionManager(), realm.getClass().getName());
-//        // 设置SessionManager
-//        securityManager.setSessionManager(sessionManager);
-//        securityManager.setCacheManager(cacheManager);
-//        // 可能还会有其他相关配置，比如CacheManager、RememberMeManager等
-//        return securityManager;
-//    }
 
     @Bean
     public ShiroFilterChainDefinition shiroFilterChainDefinition() {
